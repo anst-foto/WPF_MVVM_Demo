@@ -1,0 +1,19 @@
+﻿<UserControl x:Class="WPF_MVVM_Demo.Components.InputComponent"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Name="InputControl">
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="4*" />
+        </Grid.ColumnDefinitions>
+
+        <Label Target="{Binding ElementName=InputText}"
+               Content="{Binding ElementName=InputControl, Path=Label, Mode=OneWay}"
+               Grid.Column="0" />
+        <TextBox x:Name="InputText"
+                 Text="{Binding ElementName=InputControl, Path=InputValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                 IsReadOnly="{Binding ElementName=InputControl, Path=IsReadOnly, Mode=OneWay}"
+                 Grid.Column="1" />
+    </Grid>
+</UserControl>

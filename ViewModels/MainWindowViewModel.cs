@@ -1,5 +1,6 @@
 ﻿using System.Collections.ObjectModel;
-using System.Windows.Input;
+using System.Reactive;
+using ReactiveUI;
 using WPF_MVVM_Demo.DataAccess;
 using WPF_MVVM_Demo.Models;
 
@@ -8,24 +9,17 @@ namespace WPF_MVVM_Demo.ViewModels;
 public class MainWindowViewModel : ViewModelBase
 {
     private int? _id;
-
     public int? Id
     {
         get => _id;
-        set =>
-            /*if (value == _id) return;
-
-            _id = value;
-            OnPropertyChanged(nameof(Id));*/
-            SetField(ref _id, value);
+        set => this.RaiseAndSetIfChanged(ref _id, value);
     }
 
     private string? _firstName;
-
     public string? FirstName
     {
         get => _firstName;
-        set => SetField(ref _firstName, value);
+        set => this.RaiseAndSetIfChanged(ref _firstName, value);
     }
 
     private string? _lastName;
@@ -33,7 +27,7 @@ public class MainWindowViewModel : ViewModelBase
     public string? LastName
     {
         get => _lastName;
-        set => SetField(ref _lastName, value);
+        set => this.RaiseAndSetIfChanged(ref _lastName, value);
     }
 
     private DateTime? _birthDate;
@@ -41,7 +35,7 @@ public class MainWindowViewModel : ViewModelBase
     public DateTime? DateOfBirth
     {
         get => _birthDate;
-        set => SetField(ref _birthDate, value);
+        set => this.RaiseAndSetIfChanged(ref _birthDate, value);
     }
 
     public ObservableCollection<User> Users { get; set; } = [];
@@ -53,7 +47,9 @@ public class MainWindowViewModel : ViewModelBase
         get => _selectedUser;
         set
         {
-            if (!SetField(ref _selectedUser, value)) return;
+            if (value == _selectedUser) return;
+            
+            this.RaiseAndSetIfChanged(ref _selectedUser, value);
 
             Id = value?.Id;
             LastName = value?.LastName;
@@ -62,17 +58,38 @@ public class MainWindowViewModel : ViewModelBase
         }
     }
     
-    public ICommand CommandLoad { get; }
-    public ICommand CommandSave { get; }
-    public ICommand CommandDelete { get; }
-    public ICommand CommandClear { get; }
+    public ReactiveCommand<Unit, Unit> CommandLoad { get; }
+    public ReactiveCommand<Unit, Unit> CommandSave { get; }
+    public ReactiveCommand<Unit, bool> CommandDelete { get; }
+    public ReactiveCommand<Unit, Unit> CommandClear { get; }
 
     public MainWindowViewModel()
     {
-        CommandLoad = new LambdaCommand(async void (_) =>
+        var canExecuteCommandDelete =
+            this.WhenAnyValue(
+                vm => vm.Id,
+                vm => vm.Id,
+                (id, _) => id is not null);
+        
+        var canExecuteCommandSave = this.WhenAnyValue(
+            vm => vm.FirstName, 
+            vm => vm.LastName, 
+            vm => vm.DateOfBirth, 
+            (firstName, lastName, dateOfBirth) => !string.IsNullOrEmpty(firstName) &&
+                                                  !string.IsNullOrEmpty(lastName) &&
+                                                  dateOfBirth is not null);
+        var canExecuteCommandClear = this.WhenAnyValue(
+            vm => vm.FirstName, 
+            vm => vm.LastName, 
+            vm => vm.DateOfBirth, 
+            (firstName, lastName, dateOfBirth) => !string.IsNullOrEmpty(firstName) ||
+                                                  !string.IsNullOrEmpty(lastName) ||
+                                                  dateOfBirth is not null);
+        
+        CommandLoad = ReactiveCommand.CreateFromTask(async () =>
         {
             var users = await DataContext.GetAllUsersAsync();
-            
+
             Users.Clear();
             foreach (var user in users)
             {
@@ -80,15 +97,12 @@ public class MainWindowViewModel : ViewModelBase
             }
         });
 
-        CommandDelete = new LambdaCommand(
-            execute: async void (_) =>
-        {
-            await DataContext.DeleteUserAsync(Id!.Value);
-        },
-            canExecute: (_) => Id.HasValue);
+        CommandDelete = ReactiveCommand.CreateFromTask(
+            execute:async () => await DataContext.DeleteUserAsync(Id!.Value),
+            canExecute: canExecuteCommandDelete);
 
-        CommandSave = new LambdaCommand(
-            execute: async void (_) =>
+        CommandSave = ReactiveCommand.CreateFromTask(
+            execute: async () =>
             {
                 if (SelectedUser == null)
                 {
@@ -110,11 +124,9 @@ public class MainWindowViewModel : ViewModelBase
                     });
                 }
             },
-            canExecute: (_) => !string.IsNullOrEmpty(FirstName) &&
-                !string.IsNullOrEmpty(LastName) &&
-                DateOfBirth is not null);
-        CommandClear = new LambdaCommand(
-            execute: (_) =>
+            canExecute: canExecuteCommandSave);
+        CommandClear = ReactiveCommand.Create(
+            execute: () =>
             {
                 SelectedUser = null;
                 
@@ -122,8 +134,6 @@ public class MainWindowViewModel : ViewModelBase
                 FirstName = null;
                 DateOfBirth = null;
             },
-            canExecute: (_) => !string.IsNullOrEmpty(FirstName) ||
-                               !string.IsNullOrEmpty(LastName) ||
-                               DateOfBirth is not null);
+            canExecute: canExecuteCommandClear);
     }
 }

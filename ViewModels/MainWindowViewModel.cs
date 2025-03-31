@@ -1,6 +1,7 @@
 ﻿using System.Collections.ObjectModel;
 using System.Reactive;
 using ReactiveUI;
+using ReactiveUI.Fody.Helpers;
 using WPF_MVVM_Demo.DataAccess;
 using WPF_MVVM_Demo.Models;
 
@@ -8,55 +9,14 @@ namespace WPF_MVVM_Demo.ViewModels;
 
 public class MainWindowViewModel : ViewModelBase
 {
-    private int? _id;
-    public int? Id
-    {
-        get => _id;
-        set => this.RaiseAndSetIfChanged(ref _id, value);
-    }
-
-    private string? _firstName;
-    public string? FirstName
-    {
-        get => _firstName;
-        set => this.RaiseAndSetIfChanged(ref _firstName, value);
-    }
-
-    private string? _lastName;
-
-    public string? LastName
-    {
-        get => _lastName;
-        set => this.RaiseAndSetIfChanged(ref _lastName, value);
-    }
-
-    private DateTime? _birthDate;
-
-    public DateTime? DateOfBirth
-    {
-        get => _birthDate;
-        set => this.RaiseAndSetIfChanged(ref _birthDate, value);
-    }
+    [Reactive] public int? Id {get; set;}
+    [Reactive] public string? FirstName{get; set;}
+    [Reactive] public string? LastName {get; set;}
+    [Reactive] public DateTime? DateOfBirth {get; set;}
 
     public ObservableCollection<User> Users { get; set; } = [];
 
-    private User? _selectedUser;
-
-    public User? SelectedUser
-    {
-        get => _selectedUser;
-        set
-        {
-            if (value == _selectedUser) return;
-            
-            this.RaiseAndSetIfChanged(ref _selectedUser, value);
-
-            Id = value?.Id;
-            LastName = value?.LastName;
-            FirstName = value?.FirstName;
-            DateOfBirth = value?.DateOfBirth;
-        }
-    }
+    [Reactive] public User? SelectedUser{get; set;}
     
     public ReactiveCommand<Unit, Unit> CommandLoad { get; }
     public ReactiveCommand<Unit, Unit> CommandSave { get; }
@@ -65,6 +25,16 @@ public class MainWindowViewModel : ViewModelBase
 
     public MainWindowViewModel()
     {
+        this
+            .WhenAnyValue(vm => vm.SelectedUser)
+            .Subscribe(selectedUser =>
+            {
+                Id = selectedUser?.Id;
+                FirstName = selectedUser?.FirstName;
+                LastName = selectedUser?.LastName;
+                DateOfBirth = selectedUser?.DateOfBirth;
+            });
+        
         var canExecuteCommandDelete =
             this.WhenAnyValue(
                 vm => vm.Id,
